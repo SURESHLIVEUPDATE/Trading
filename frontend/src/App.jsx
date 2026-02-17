@@ -32,8 +32,8 @@ const App = () => {
         // If online, use the Render Backend URL.
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-        // PLACEHOLDER: Replace this URL once you get it from Render.com
-        const productionHost = 'trading-backend-suresh.onrender.com'; // Change this after Step 1
+        // Actual Render Backend URL
+        const productionHost = 'trading-jv2r.onrender.com';
 
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsHost = isLocal ? 'localhost:8888' : productionHost;
