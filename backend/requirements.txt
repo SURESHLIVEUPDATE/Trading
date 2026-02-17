@@ -1,9 +1,8 @@
 fastapi
 uvicorn[standard]
 python-binance
-pandas==1.5.3
-numpy==1.23.5
-pandas-ta
+pandas
+numpy
 python-dotenv
 sqlalchemy
 pydantic
