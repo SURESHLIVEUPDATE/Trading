@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+// Triggering fresh build for GitHub Actions deployment
 import {
     TrendingUp, TrendingDown, Clock, Shield,
     Activity, BarChart2, Zap, Search, Menu,
