@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-binance
+pandas
+pandas-ta
+python-dotenv
+sqlalchemy
+pydantic
+websockets
+openai
+httpx
+python-multipart
