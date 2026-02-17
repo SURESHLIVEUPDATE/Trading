@@ -125,84 +125,73 @@ class StrategyEngine:
         # Multi-Indicator Confirmation for Stability
         bullish_signals = 0
         bearish_signals = 0
+        reasons = []
         
-        # Signal 1: RSI Analysis (30min optimized)
-        if rsi < 35:  # Oversold
-            bullish_signals += 2
-        elif rsi > 65:  # Overbought
-            bearish_signals += 2
-        elif 45 < rsi < 55:  # Neutral zone
-            pass
-        elif rsi < 50:
-            bullish_signals += 1
-        else:
-            bearish_signals += 1
+        # Signal 1: RSI Analysis
+        if rsi < 32:  # Deeper Oversold
+            bullish_signals += 3
+            reasons.append("RSI shows deep oversold exhaustion (Reversal likely)")
+        elif rsi > 68:  # Deeper Overbought
+            bearish_signals += 3
+            reasons.append("RSI indicates overbought fatigue (Correction imminent)")
+        elif rsi < 45: bullish_signals += 1
+        elif rsi > 55: bearish_signals += 1
         
-        # Signal 2: EMA Crossover
+        # Signal 2: EMA Crossover (King of Trend)
         if ema_9 > ema_21:
             bullish_signals += 2
+            reasons.append("Bullish EMA 9/21 Golden Cross confirmed")
         elif ema_9 < ema_21:
             bearish_signals += 2
+            reasons.append("Bearish EMA 9/21 Death Cross active")
         
-        # Signal 3: MACD Confirmation
+        # Signal 3: MACD Histogram & Momentum
         if macd > macd_signal and macd_hist > 0:
             bullish_signals += 2
+            reasons.append("MACD histogram expanding in positive territory")
         elif macd < macd_signal and macd_hist < 0:
             bearish_signals += 2
+            reasons.append("MACD momentum shifting into bearish acceleration")
         
-        # Signal 4: Price Position vs EMAs
-        if current_price > ema_9 and current_price > ema_21:
-            bullish_signals += 1
-        elif current_price < ema_9 and current_price < ema_21:
-            bearish_signals += 1
-        
-        # Calculate Signal Strength (Total: 7 max signals each side)
-        total_signals = bullish_signals + bearish_signals
-        
-        # Decision Logic with Confirmation Requirement (Need 4+ signals for Strong signal)
-        if bullish_signals >= 4 and bullish_signals > bearish_signals:
-            bias = "BULLISH"
+        # Calculate Signal Strength
+        if bullish_signals >= 5:
             signal = "STRONG BUY"
-            # Conservative targets for 30min timeframe
-            target = current_price * 1.018  # 1.8% Profit Target (30min realistic)
-            stop_loss = current_price * 0.992  # 0.8% Stop Loss (tight for 30min)
-            confidence = min(95.0, 65 + (bullish_signals * 5))
-            
-        elif bearish_signals >= 4 and bearish_signals > bullish_signals:
-            bias = "BEARISH"
+            reason = reasons[0] if reasons else "Strong bullish confluence detected."
+            target = current_price * 1.015
+            stop_loss = current_price * 0.992
+            confidence = 88.5
+        elif bearish_signals >= 5:
             signal = "STRONG SELL"
-            target = current_price * 0.982  # 1.8% Drop target
-            stop_loss = current_price * 1.008  # 0.8% Stop Loss
-            confidence = min(95.0, 65 + (bearish_signals * 5))
-            
-        elif bullish_signals > bearish_signals and bullish_signals >= 2:
-            bias = "BULLISH"
+            reason = reasons[0] if reasons else "Strong bearish pressure detected."
+            target = current_price * 0.985
+            stop_loss = current_price * 1.008
+            confidence = 88.5
+        elif bullish_signals >= 3:
             signal = "BUY"
-            target = current_price * 1.012  # 1.2% Moderate Target
-            stop_loss = current_price * 0.994  # 0.6% Stop Loss
-            confidence = 55 + (bullish_signals * 4)
-            
-        elif bearish_signals > bullish_signals and bearish_signals >= 2:
-            bias = "BEARISH"
-            signal = "SELL"
-            target = current_price * 0.988  # 1.2% Drop
-            stop_loss = current_price * 1.006  # 0.6% Stop Loss
-            confidence = 55 + (bearish_signals * 4)
-        else:
-            bias = "NEUTRAL"
-            signal = "HOLD"
-            target = current_price
+            reason = "Moderate bullish momentum building."
+            target = current_price * 1.008
             stop_loss = current_price * 0.995
-            confidence = 45.0
+            confidence = 72.0
+        elif bearish_signals >= 3:
+            signal = "SELL"
+            reason = "Moderate bearish slide initiated."
+            target = current_price * 0.992
+            stop_loss = current_price * 1.005
+            confidence = 72.0
+        else:
+            signal = "HOLD"
+            reason = "Waiting for liquidation surge or clear breakout."
+            target = current_price
+            stop_loss = current_price * 0.997
+            confidence = 50.0
 
         return {
             "prediction_target": target,
             "stop_loss": stop_loss,
-            "confidence_score": round(confidence, 1),
-            "bias": bias,
+            "confidence_score": confidence,
+            "bias": "BULLISH" if bullish_signals > bearish_signals else "BEARISH" if bearish_signals > bullish_signals else "NEUTRAL",
             "signal": signal,
-            "timeframe": "30min Optimized",
-            "model_version": "Stable-Multi-Confirm-v4.0",
+            "reason": reason,
             "bullish_score": bullish_signals,
             "bearish_score": bearish_signals
         }

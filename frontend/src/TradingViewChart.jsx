@@ -90,56 +90,63 @@ const TradingViewChart = ({ symbol, currentPrice }) => {
         };
     }, []);
 
-    // Regenerate data when timeframe changes
+    // Initialize chart data only on timeframe/symbol change
     useEffect(() => {
         if (candleSeriesRef.current) {
             const price = currentPrice || 95000;
-            generateCandleData(candleSeriesRef.current, price, timeframe);
+            // Generate historical data
+            const initialData = generateHistoricalData(price, timeframe);
+            candleSeriesRef.current.setData(initialData);
+
+            // Store last candle for smooth updates
+            lastCandleRef.current = initialData[initialData.length - 1];
         }
-    }, [timeframe, currentPrice]);
+    }, [timeframe, symbol]);
 
-    const generateCandleData = (series, basePrice, tf) => {
+    // Handle real-time price updates smoothly
+    const lastCandleRef = useRef(null);
+    useEffect(() => {
+        if (candleSeriesRef.current && currentPrice && lastCandleRef.current) {
+            const newPrice = parseFloat(currentPrice);
+            const candle = lastCandleRef.current;
+
+            // Update the latest candle with the new price
+            const updatedCandle = {
+                ...candle,
+                close: newPrice,
+                high: Math.max(candle.high, newPrice),
+                low: Math.min(candle.low, newPrice),
+            };
+
+            candleSeriesRef.current.update(updatedCandle);
+            lastCandleRef.current = updatedCandle;
+        }
+    }, [currentPrice]);
+
+    const generateHistoricalData = (basePrice, tf) => {
         const price = parseFloat(basePrice) || 95000;
-
         const data = [];
         const now = Math.floor(Date.now() / 1000);
-        const intervals = {
-            '1m': 60,
-            '5m': 300,
-            '15m': 900,
-            '30m': 1800,
-            '1h': 3600,
-            '4h': 14400,
-            '1d': 86400,
-        };
-
+        const intervals = { '1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400 };
         const interval = intervals[tf];
-        const numCandles = 100;
+        const numCandles = 60;
 
-        let currentPrice = price;
-
+        let curP = price;
         for (let i = numCandles; i >= 0; i--) {
             const time = now - (i * interval);
-            const volatility = price * 0.015; // 1.5% volatility
-
-            const open = currentPrice;
-            const change = (Math.random() - 0.5) * volatility;
+            const open = curP;
+            const change = (Math.random() - 0.5) * (price * 0.005);
             const close = open + change;
-            const high = Math.max(open, close) + Math.random() * volatility * 0.3;
-            const low = Math.min(open, close) - Math.random() * volatility * 0.3;
-
             data.push({
                 time,
                 open: parseFloat(open.toFixed(2)),
-                high: parseFloat(high.toFixed(2)),
-                low: parseFloat(low.toFixed(2)),
+                high: parseFloat(Math.max(open, close, open + Math.abs(change) * 1.2).toFixed(2)),
+                low: parseFloat(Math.min(open, close, open - Math.abs(change) * 1.2).toFixed(2)),
                 close: parseFloat(close.toFixed(2)),
             });
-
-            currentPrice = close;
+            curP = close;
         }
-
-        series.setData(data);
+        return data;
     };
 
     return (
@@ -163,8 +170,8 @@ const TradingViewChart = ({ symbol, currentPrice }) => {
                             key={tf.value}
                             onClick={() => setTimeframe(tf.value)}
                             className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${timeframe === tf.value
-                                    ? 'bg-[#FCD535] text-black shadow-lg shadow-yellow-500/20'
-                                    : 'text-[#848E9C] hover:text-white hover:bg-white/5'
+                                ? 'bg-[#FCD535] text-black shadow-lg shadow-yellow-500/20'
+                                : 'text-[#848E9C] hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             {tf.label}

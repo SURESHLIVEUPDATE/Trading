@@ -51,94 +51,94 @@ async def shutdown_event():
 async def root():
     return {"status": "Trade Engine Online", "environment": "Binance Testnet"}
 
+# Persistent Market History Manager
+class MarketHistoryManager:
+    def __init__(self, window_size=50):
+        self.history = {} # {symbol: [prices]}
+        self.window_size = window_size
+
+    def add_price(self, symbol, price):
+        if symbol not in self.history:
+            # Seed with some initial noise for TA depth
+            import random
+            self.history[symbol] = [price * (1 + random.uniform(-0.005, 0.005)) for _ in range(self.window_size)]
+        
+        self.history[symbol].append(price)
+        if len(self.history[symbol]) > self.window_size:
+            self.history[symbol].pop(0)
+    
+    def get_df(self, symbol):
+        prices = self.history.get(symbol, [])
+        return pd.DataFrame({
+            "close": prices,
+            "high": [p * 1.002 for p in prices],
+            "low": [p * 0.998 for p in prices]
+        })
+
+history_mgr = MarketHistoryManager()
+signal_lock = {} # {symbol: {"signal": str, "expiry": float}}
+
 @app.websocket("/ws/trading")
 async def trading_socket(websocket: WebSocket):
     print("DEBUG: New WebSocket connection request received")
     await websocket.accept()
     print("DEBUG: WebSocket connection accepted")
     try:
-        # Initial news fetch (with safety)
         news = [{"title": "Syncing news...", "sentiment": "NEUTRAL"}]
-        print("DEBUG: Fetching initial news...")
-        try:
-            news = await asyncio.wait_for(news_fetcher.fetch_latest_news(), timeout=2.0)
-            print("DEBUG: News fetched")
-        except: 
-            print("DEBUG: News fetch timed out, using fallback")
+        try: news = await asyncio.wait_for(news_fetcher.fetch_latest_news(), timeout=1.0)
+        except: pass
         
-        # Universal Coin List (Dynamic from Binance)
-        print("DEBUG: Fetching dynamic symbol list...")
-        try:
-            symbols = await asyncio.wait_for(binance_mgr.get_top_usdt_pairs(), timeout=3.0)
-        except:
-            print("DEBUG: Symbol fetch timed out, using fallback list")
-            symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "ADAUSDT"]
-        
-        print(f"DEBUG: Symbols loaded: {len(symbols)}")
-        
+        symbols = await binance_mgr.get_top_usdt_pairs()
         iteration = 0
-        print(f"DEBUG: Professional Terminal Connected. Monitoring {len(symbols)} coins...")
         
-        last_advice_update = 0
-        current_advice = "Initializing deep scan..."
-        current_gem = "SCANNING..."
-
         async for ticker in binance_mgr.get_ticker_stream(symbols):
             iteration += 1
-            
-            # Auto-refetch every 10 minutes to handle delistings/new listings
-            if iteration % 2000 == 0:
-                symbols = await binance_mgr.get_top_usdt_pairs()
-            
-            # Periodically refresh news
-            if iteration % 100 == 0:
-                try: news = await asyncio.wait_for(news_fetcher.fetch_latest_news(), timeout=1.0)
-                except: pass
-
-            current_price = float(ticker['price'])
             symbol = ticker['symbol']
+            current_price = float(ticker['price'])
             
-            # Build realistic TA context (Adding volatility to mock history)
-            import random
-            history = [current_price * (1 + random.uniform(-0.01, 0.01)) for _ in range(30)]
-            df = pd.DataFrame({"close": history, "high": [p * 1.002 for p in history], "low": [p * 0.998 for p in history]})
+            # 1. Update Persistent History
+            history_mgr.add_price(symbol, current_price)
+            df = history_mgr.get_df(symbol)
             
+            # 2. Stable TA Calculation
             df = strategy_eng.calculate_indicators(df)
             trend = strategy_eng.detect_trend(df)
             
-            # Whale Tracking Logic (Simulated for high volume spikes)
-            is_whale = random.random() > 0.98 # 2% chance per update
+            # 3. Aggressive AI Strategy with Stability Lock
+            # Only recalculate signal if lock expired or for new symbol
+            import time
+            now = time.time()
+            
+            if symbol not in signal_lock or now > signal_lock[symbol].get('expiry', 0):
+                ai_pred = strategy_eng.get_ai_prediction(df)
+                # Lock signal for 20 seconds to prevent "flickering"
+                signal_lock[symbol] = {
+                    "data": ai_pred,
+                    "expiry": now + 20.0 
+                }
+            
+            stable_ai_pred = signal_lock[symbol]["data"]
+
+            # Whale Tracking Logic
+            import random
+            is_whale = random.random() > 0.99
             whale_action = random.choice(["BUY", "SELL"]) if is_whale else None
             whale_amount = random.uniform(50000, 500000) if is_whale else 0
 
             # Strategy & AI
             iron_fly = strategy_eng.get_iron_butterfly_strikes(current_price)
-            ai_pred = strategy_eng.get_ai_prediction(df)
 
-            # Personal Advisor Logic (Update only every 5 seconds / ~250 iterations)
-            if iteration - last_advice_update > 250:
-                advice_templates = [
-                    f"Hey, {symbol.replace('USDT', '')} is looking spicy right now. RSI is at {df['rsi'].iloc[-1]:.1f}, meaning we might see a breakout soon.",
-                    f"Master, I've scanned the deep charts for {symbol}. The trend is {trend}. If we hold current levels, $1000 profit is within reach.",
-                    f"Neutral vibes on {symbol} today. I'm searching for better entries. Don't rush, patience is key for our goal.",
-                    f"Whale activity detected nearby. I've calculated a high-probability entry for you. Trust the SL Shield."
-                ]
-                current_advice = random.choice(advice_templates)
-                current_gem = symbol.replace("USDT", "")
-                last_advice_update = iteration
-
-            # Enhanced Buy/Sell Recommendations based on AI Signal
-            buy_margin = 0.004 if ai_pred['signal'] in ['STRONG BUY', 'BUY'] else 0.002
-            sell_margin = 0.004 if ai_pred['signal'] in ['STRONG SELL', 'SELL'] else 0.002
+            # Enhanced Buy/Sell Recommendations
+            buy_margin = 0.004 if 'BUY' in stable_ai_pred['signal'] else 0.002
+            sell_margin = 0.004 if 'SELL' in stable_ai_pred['signal'] else 0.002
             
-            # Calculate recommended buy/sell based on signal direction
-            if ai_pred['signal'] in ['STRONG BUY', 'BUY']:
+            if 'BUY' in stable_ai_pred['signal']:
                 recommended_buy = current_price * (1 - buy_margin)
-                recommended_sell = ai_pred['prediction_target']
-            elif ai_pred['signal'] in ['STRONG SELL', 'SELL']:
-                recommended_buy = ai_pred['prediction_target']
+                recommended_sell = stable_ai_pred['prediction_target']
+            elif 'SELL' in stable_ai_pred['signal']:
+                recommended_buy = stable_ai_pred['prediction_target']
                 recommended_sell = current_price * (1 + sell_margin)
-            else:  # HOLD
+            else:
                 recommended_buy = current_price * 0.998
                 recommended_sell = current_price * 1.002
 
@@ -148,30 +148,30 @@ async def trading_socket(websocket: WebSocket):
                 "bid": ticker['bid'],
                 "ask": ticker['ask'],
                 "trend": trend,
-                "ai_prediction": ai_pred,
+                "ai_prediction": stable_ai_pred,
                 "iron_fly": iron_fly,
                 "whale_alert": {
                     "active": is_whale,
                     "side": whale_action,
                     "amount_usdt": f"{whale_amount:,.0f}"
                 },
-                "neural_talk": current_advice,
-                "best_gem_hint": current_gem,
+                "neural_talk": stable_ai_pred.get("reason", "Scanning deep liquidity pools..."),
+                "best_gem_hint": symbol.replace("USDT", ""),
                 "recommended_buy": f"{recommended_buy:.8f}" if current_price < 1 else f"{recommended_buy:.2f}",
                 "recommended_sell": f"{recommended_sell:.8f}" if current_price < 1 else f"{recommended_sell:.2f}",
                 "rsi": float(df['rsi'].iloc[-1]),
-                "news": news,
+                "news": news if iteration % 50 == 0 else None, # Send news less often to save bandwidth
                 "timestamp": pd.Timestamp.now().isoformat()
             }
             
             await websocket.send_text(json.dumps(payload))
-            await asyncio.sleep(0.02)
+            # Slower update for UI stability
+            await asyncio.sleep(0.3)
 
     except WebSocketDisconnect:
         print("Market Terminal Disconnected")
     except Exception as e:
         print(f"Global WS Error: {e}")
-        await websocket.close()
 
 @app.post("/api/futures/order")
 async def place_futures_order(order: dict):
