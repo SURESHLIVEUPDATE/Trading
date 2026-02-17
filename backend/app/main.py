@@ -20,7 +20,7 @@ app.add_middleware(
 from app.engine.news_fetcher import NewsFetcher
 from app.engine.risk_manager import RiskManager
 
-binance_mgr = BinanceManager(testnet=True)
+binance_mgr = BinanceManager(testnet=False)
 strategy_eng = StrategyEngine()
 ai_layer = AIDecisionLayer()
 news_fetcher = NewsFetcher()

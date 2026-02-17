@@ -66,34 +66,47 @@ class BinanceManager:
             # Fallback Mock Data for all symbols
             import random
             
-            # Universal Mock Start Prices
-            prices = {s: 1.0 for s in symbols}
-            # Specific high-cap starting prices
-            seed_prices = {"BTCUSDT": 96500.0, "ETHUSDT": 2400.0, "BNBUSDT": 600.0, "SOLUSDT": 210.0, "XRPUSDT": 2.50}
-            for s, p in seed_prices.items():
-                if s in prices: prices[s] = p
-
+            # Enhanced seed prices for more realistic fallback
+            seed_prices = {
+                "BTCUSDT": 96500.0, 
+                "ETHUSDT": 2400.0, 
+                "BNBUSDT": 600.0, 
+                "SOLUSDT": 210.0, 
+                "XRPUSDT": 2.50,
+                "ADAUSDT": 0.35,
+                "DOGEUSDT": 0.38,
+                "SHIBUSDT": 0.000025,
+                "PEPEUSDT": 0.000018,
+                "LINKUSDT": 18.50,
+                "AVAXUSDT": 35.0
+            }
+            prices = {s: seed_prices.get(s, 1.0) for s in symbols}
+            
             while True:
                 for symbol in symbols:
-                    volatility = prices[symbol] * 0.002
-                    prices[symbol] += random.uniform(-volatility, volatility)
+                    # Realistic volatility (0.1% to 0.3% per tick)
+                    current = prices[symbol]
+                    change = 1 + random.uniform(-0.002, 0.002)
+                    prices[symbol] = current * change
                     
-                    price = prices[symbol]
-                    # Smart Precision: Small prices get more decimals
-                    precision = 8 if price < 0.01 else (4 if price < 10 else 2)
-                    
-                    price_str = f"{price:.{precision}f}"
-                    bit_str = f"{price * 0.999:.{precision}f}"
-                    ask_str = f"{price * 1.001:.{precision}f}"
+                    # Ensure price doesn't go negative or too low
+                    if prices[symbol] < 0.00000001:
+                        prices[symbol] = 0.00000001
+
+                    # Use a fixed high precision for all mock prices
+                    # This handles small price coins better without dynamic precision logic
+                    price_str = f"{prices[symbol]:.8f}"
+                    bid_str = f"{prices[symbol] * 0.9995:.8f}"
+                    ask_str = f"{prices[symbol] * 1.0005:.8f}"
                     
                     yield {
                         "symbol": symbol,
                         "price": price_str,
-                        "bid": bit_str,
+                        "bid": bid_str,
                         "ask": ask_str,
-                        "spread": float(ask_str) - float(bit_str),
-                        "high": f"{price * 1.02:.{precision}f}",
-                        "low": f"{price * 0.98:.{precision}f}"
+                        "spread": float(ask_str) - float(bid_str),
+                        "high": f"{prices[symbol] * 1.002:.8f}",
+                        "low": f"{prices[symbol] * 0.998:.8f}"
                     }
 
                 await asyncio.sleep(0.3)
