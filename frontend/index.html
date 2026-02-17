@@ -54,7 +54,13 @@
 
 <body>
   <div id="root"></div>
-  <script type="module" src="./src/main.jsx"></script>
+  <script>
+    // Diagnostic log for the user
+    window.onerror = function (msg, url, line) {
+      document.body.innerHTML += '<div style="color:red;padding:20px;background:#000;position:fixed;top:0;z-index:9999">Error: ' + msg + ' at ' + url + ':' + line + '</div>';
+    };
+  </script>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 
 </html>
