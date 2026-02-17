@@ -36,24 +36,25 @@ class BinanceManager:
 
     async def get_latest_prices_rest(self, symbols):
         """Fetches latest prices via REST API with distinct values per coin."""
+        emergency_seeds = {
+            "BTCUSDT": 67605.95,
+            "ETHUSDT": 2498.38,
+            "BNBUSDT": 618.12,
+            "SOLUSDT": 210.45,
+            "XRPUSDT": 1.48,
+            "ADAUSDT": 0.45,
+            "DOGEUSDT": 0.38,
+            "SHIBUSDT": 0.000025,
+            "PEPEUSDT": 0.000018
+        }
         try:
             if not self.client: await self.init_client()
             tickers = await self.client.get_symbol_ticker()
             price_map = {t['symbol']: float(t['price']) for t in tickers}
-            return {s: price_map.get(s, 67600.0 if "BTC" in s else 2400.0) for s in symbols}
-        except:
-            # Emergency accurate seeds based on user's latest data
-            return {
-                "BTCUSDT": 67566.77,
-                "ETHUSDT": 1998.38,
-                "BNBUSDT": 618.12,
-                "SOLUSDT": 210.45,
-                "XRPUSDT": 1.48,
-                "ADAUSDT": 0.45,
-                "DOGEUSDT": 0.38,
-                "SHIBUSDT": 0.000025,
-                "PEPEUSDT": 0.000018
-            }
+            return {s: price_map.get(s, emergency_seeds.get(s, 1.0)) for s in symbols}
+        except Exception as e:
+            print(f"DEBUG: REST price fetch failed ({e}). Using emergency seeds.")
+            return {s: emergency_seeds.get(s, 1.0) for s in symbols}
 
     async def get_ticker_stream(self, symbols=None):
         """Streams real-time ticker data with fix for identical prices."""

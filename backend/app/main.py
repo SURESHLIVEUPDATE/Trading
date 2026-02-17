@@ -84,15 +84,14 @@ async def trading_socket(websocket: WebSocket):
     await websocket.accept()
     print("DEBUG: WebSocket connection accepted")
     try:
-        news = [{"title": "Syncing news...", "sentiment": "NEUTRAL"}]
-        try: news = await asyncio.wait_for(news_fetcher.fetch_latest_news(), timeout=1.0)
+        news = []
+        try: news = await asyncio.wait_for(news_fetcher.fetch_latest_news(), timeout=2.0)
         except: pass
         
         symbols = await binance_mgr.get_top_usdt_pairs()
-        iteration = 0
+        first_run = True
         
         async for ticker in binance_mgr.get_ticker_stream(symbols):
-            iteration += 1
             symbol = ticker['symbol']
             current_price = float(ticker['price'])
             
@@ -105,13 +104,11 @@ async def trading_socket(websocket: WebSocket):
             trend = strategy_eng.detect_trend(df)
             
             # 3. Aggressive AI Strategy with Stability Lock
-            # Only recalculate signal if lock expired or for new symbol
             import time
             now = time.time()
             
             if symbol not in signal_lock or now > signal_lock[symbol].get('expiry', 0):
                 ai_pred = strategy_eng.get_ai_prediction(df)
-                # Lock signal for 5 seconds to provide stability without heavy lag
                 signal_lock[symbol] = {
                     "data": ai_pred,
                     "expiry": now + 5.0 
@@ -119,28 +116,21 @@ async def trading_socket(websocket: WebSocket):
             
             stable_ai_pred = signal_lock[symbol]["data"]
 
-            # Whale Tracking Logic
+            # Whale Tracking Simulation
             import random
-            is_whale = random.random() > 0.99
+            is_whale = random.random() > 0.98
             whale_action = random.choice(["BUY", "SELL"]) if is_whale else None
-            whale_amount = random.uniform(50000, 500000) if is_whale else 0
+            whale_amount = random.uniform(50000, 300000) if is_whale else 0
 
-            # Strategy & AI
-            iron_fly = strategy_eng.get_iron_butterfly_strikes(current_price)
-
-            # Enhanced Buy/Sell Recommendations
-            buy_margin = 0.004 if 'BUY' in stable_ai_pred['signal'] else 0.002
-            sell_margin = 0.004 if 'SELL' in stable_ai_pred['signal'] else 0.002
-            
+            # Recommendation Logic
+            recommended_buy = current_price * 0.998
+            recommended_sell = current_price * 1.002
             if 'BUY' in stable_ai_pred['signal']:
-                recommended_buy = current_price * (1 - buy_margin)
+                recommended_buy = current_price * 0.999
                 recommended_sell = stable_ai_pred['prediction_target']
             elif 'SELL' in stable_ai_pred['signal']:
                 recommended_buy = stable_ai_pred['prediction_target']
-                recommended_sell = current_price * (1 + sell_margin)
-            else:
-                recommended_buy = current_price * 0.998
-                recommended_sell = current_price * 1.002
+                recommended_sell = current_price * 1.001
 
             payload = {
                 "symbol": symbol,
@@ -149,24 +139,23 @@ async def trading_socket(websocket: WebSocket):
                 "ask": ticker['ask'],
                 "trend": trend,
                 "ai_prediction": stable_ai_pred,
-                "iron_fly": iron_fly,
                 "whale_alert": {
                     "active": is_whale,
                     "side": whale_action,
                     "amount_usdt": f"{whale_amount:,.0f}"
                 },
-                "neural_talk": stable_ai_pred.get("reason", "Scanning deep liquidity pools..."),
+                "neural_talk": stable_ai_pred.get("neural_talk", "Analyzing market depth..."),
                 "best_gem_hint": symbol.replace("USDT", ""),
-                "recommended_buy": f"{recommended_buy:.8f}" if current_price < 1 else f"{recommended_buy:.2f}",
-                "recommended_sell": f"{recommended_sell:.8f}" if current_price < 1 else f"{recommended_sell:.2f}",
+                "recommended_buy": recommended_buy,
+                "recommended_sell": recommended_sell,
                 "rsi": float(df['rsi'].iloc[-1]),
-                "news": news if iteration % 50 == 0 else None, # Send news less often to save bandwidth
+                "news": news if first_run else (news if random.random() > 0.95 else None),
                 "timestamp": pd.Timestamp.now().isoformat()
             }
+            first_run = False
             
             await websocket.send_text(json.dumps(payload))
-            # Slower update for UI stability
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.1) # Rapid updates for that premium feel
 
     except WebSocketDisconnect:
         print("Market Terminal Disconnected")
