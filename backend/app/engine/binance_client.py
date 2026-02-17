@@ -62,54 +62,24 @@ class BinanceManager:
                         print("DEBUG: Binance stream timeout, switching to Mock mode for UI responsiveness")
                         raise Exception("Binance Timeout Fallback")
         except Exception as e:
-            print(f"DEBUG: Binance connection failed ({e}), switching to Multi-Coin Mock Mode")
-            # Fallback Mock Data for all symbols
-            import random
-            
-            # Enhanced seed prices for more realistic fallback
-            seed_prices = {
-                "BTCUSDT": 96500.0, 
-                "ETHUSDT": 2400.0, 
-                "BNBUSDT": 600.0, 
-                "SOLUSDT": 210.0, 
-                "XRPUSDT": 2.50,
-                "ADAUSDT": 0.35,
-                "DOGEUSDT": 0.38,
-                "SHIBUSDT": 0.000025,
-                "PEPEUSDT": 0.000018,
-                "LINKUSDT": 18.50,
-                "AVAXUSDT": 35.0
-            }
-            prices = {s: seed_prices.get(s, 1.0) for s in symbols}
-            
+            print(f"DEBUG: Binance connection failed ({e}), using safe fallback seeds")
+            # Minimal hard fallback for extreme cases
+            prices = {s: 67600.0 if "BTC" in s else 2400.0 for s in symbols}
             while True:
                 for symbol in symbols:
-                    # Realistic volatility (0.1% to 0.3% per tick)
-                    current = prices[symbol]
-                    change = 1 + random.uniform(-0.002, 0.002)
-                    prices[symbol] = current * change
-                    
-                    # Ensure price doesn't go negative or too low
-                    if prices[symbol] < 0.00000001:
-                        prices[symbol] = 0.00000001
-
-                    # Use a fixed high precision for all mock prices
-                    # This handles small price coins better without dynamic precision logic
-                    price_str = f"{prices[symbol]:.8f}"
-                    bid_str = f"{prices[symbol] * 0.9995:.8f}"
-                    ask_str = f"{prices[symbol] * 1.0005:.8f}"
-                    
+                    import random
+                    prices[symbol] *= (1 + random.uniform(-0.0001, 0.0001))
+                    ps = f"{prices[symbol]:.2f}"
                     yield {
                         "symbol": symbol,
-                        "price": price_str,
-                        "bid": bid_str,
-                        "ask": ask_str,
-                        "spread": float(ask_str) - float(bid_str),
-                        "high": f"{prices[symbol] * 1.002:.8f}",
-                        "low": f"{prices[symbol] * 0.998:.8f}"
+                        "price": ps,
+                        "bid": f"{prices[symbol]*0.9999:.2f}",
+                        "ask": f"{prices[symbol]*1.0001:.2f}",
+                        "spread": 0.01,
+                        "high": ps,
+                        "low": ps
                     }
-
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(1)
 
 
     async def close(self):
