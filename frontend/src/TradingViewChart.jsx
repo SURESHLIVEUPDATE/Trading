@@ -73,7 +73,7 @@ const TradingViewChart = ({ symbol, currentPrice }) => {
 
         // Generate initial data with default price
         const initialPrice = currentPrice || 95000;
-        generateCandleData(candleSeries, initialPrice, timeframe);
+        candleSeries.setData(generateHistoricalData(initialPrice, timeframe));
 
         // Handle resize
         const handleResize = () => {
