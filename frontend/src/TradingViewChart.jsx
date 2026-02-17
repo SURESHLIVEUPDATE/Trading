@@ -26,7 +26,7 @@ const TradingViewChart = ({ symbol, currentPrice }) => {
             width: chartContainerRef.current.clientWidth,
             height: 400,
             layout: {
-                background: { color: '#050505' },
+                background: { color: 'transparent' },
                 textColor: '#848E9C',
             },
             grid: {
@@ -35,20 +35,13 @@ const TradingViewChart = ({ symbol, currentPrice }) => {
             },
             crosshair: {
                 mode: 1,
-                vertLine: {
-                    color: '#FCD535',
-                    width: 1,
-                    style: 2,
-                },
-                horzLine: {
-                    color: '#FCD535',
-                    width: 1,
-                    style: 2,
-                },
+                vertLine: { color: '#FCD535', width: 1, style: 2 },
+                horzLine: { color: '#FCD535', width: 1, style: 2 },
             },
             rightPriceScale: {
                 borderColor: 'rgba(255, 255, 255, 0.1)',
                 textColor: '#848E9C',
+                scaleMargins: { top: 0.1, bottom: 0.2 },
             },
             timeScale: {
                 borderColor: 'rgba(255, 255, 255, 0.1)',
@@ -66,22 +59,23 @@ const TradingViewChart = ({ symbol, currentPrice }) => {
             borderDownColor: '#F6465D',
             wickUpColor: '#0ECB81',
             wickDownColor: '#F6465D',
+            priceFormat: {
+                type: 'price',
+                precision: symbol.includes('SHIB') || symbol.includes('PEPE') ? 8 : 2,
+                minMove: 0.01,
+            },
         });
 
         chartRef.current = chart;
         candleSeriesRef.current = candleSeries;
 
-        // Generate initial data with default price
-        const initialPrice = currentPrice || 95000;
+        // Start with a clean slate
+        const initialPrice = parseFloat(currentPrice) || 67605.95;
         candleSeries.setData(generateHistoricalData(initialPrice, timeframe));
 
-        // Handle resize
         const handleResize = () => {
-            chart.applyOptions({
-                width: chartContainerRef.current.clientWidth,
-            });
+            chart.applyOptions({ width: chartContainerRef.current.clientWidth });
         };
-
         window.addEventListener('resize', handleResize);
 
         return () => {
@@ -90,41 +84,35 @@ const TradingViewChart = ({ symbol, currentPrice }) => {
         };
     }, []);
 
-    // Initialize chart data only on timeframe/symbol change
+    // Timeframe/Symbol change
     useEffect(() => {
         if (candleSeriesRef.current) {
-            const price = currentPrice || 95000;
-            // Generate historical data
+            const price = parseFloat(currentPrice) || 67605.95;
             const initialData = generateHistoricalData(price, timeframe);
             candleSeriesRef.current.setData(initialData);
-
-            // Store last candle for smooth updates
             lastCandleRef.current = initialData[initialData.length - 1];
         }
     }, [timeframe, symbol]);
 
-    // Handle real-time price updates smoothly
+    // Update current price
     const lastCandleRef = useRef(null);
     useEffect(() => {
         if (candleSeriesRef.current && currentPrice && lastCandleRef.current) {
             const newPrice = parseFloat(currentPrice);
             const candle = lastCandleRef.current;
-
-            // Update the latest candle with the new price
             const updatedCandle = {
                 ...candle,
                 close: newPrice,
                 high: Math.max(candle.high, newPrice),
                 low: Math.min(candle.low, newPrice),
             };
-
             candleSeriesRef.current.update(updatedCandle);
             lastCandleRef.current = updatedCandle;
         }
     }, [currentPrice]);
 
     const generateHistoricalData = (basePrice, tf) => {
-        const price = parseFloat(basePrice) || 95000;
+        const price = parseFloat(basePrice) || 67605.95;
         const data = [];
         const now = Math.floor(Date.now() / 1000);
         const intervals = { '1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400 };
@@ -135,14 +123,14 @@ const TradingViewChart = ({ symbol, currentPrice }) => {
         for (let i = numCandles; i >= 0; i--) {
             const time = now - (i * interval);
             const open = curP;
-            const change = (Math.random() - 0.5) * (price * 0.005);
+            const change = (Math.random() - 0.5) * (price * 0.002);
             const close = open + change;
             data.push({
                 time,
-                open: parseFloat(open.toFixed(2)),
-                high: parseFloat(Math.max(open, close, open + Math.abs(change) * 1.2).toFixed(2)),
-                low: parseFloat(Math.min(open, close, open - Math.abs(change) * 1.2).toFixed(2)),
-                close: parseFloat(close.toFixed(2)),
+                open: open,
+                high: Math.max(open, close) + Math.abs(change) * 0.1,
+                low: Math.min(open, close) - Math.abs(change) * 0.1,
+                close: close,
             });
             curP = close;
         }

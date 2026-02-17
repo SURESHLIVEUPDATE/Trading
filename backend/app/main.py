@@ -155,7 +155,7 @@ async def trading_socket(websocket: WebSocket):
             first_run = False
             
             await websocket.send_text(json.dumps(payload))
-            await asyncio.sleep(0.1) # Rapid updates for that premium feel
+            await asyncio.sleep(0.2) # Balanced updates for smoothness
 
     except WebSocketDisconnect:
         print("Market Terminal Disconnected")
