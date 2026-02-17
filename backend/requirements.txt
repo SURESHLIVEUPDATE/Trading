@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 python-binance
 pandas
+numpy<2.1.0
 pandas-ta
 python-dotenv
 sqlalchemy
