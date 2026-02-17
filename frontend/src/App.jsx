@@ -25,9 +25,19 @@ const App = () => {
 
     const connectWS = () => {
         setConnError(null);
-        // Use window.location.hostname to match how the user accesses it
-        const host = window.location.hostname || '127.0.0.1';
-        const socket = new WebSocket(`ws://${host}:8888/ws/trading`);
+
+        // Dynamic Backend Logic:
+        // If on localhost, use port 8888. 
+        // If online, use the Render Backend URL.
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        // PLACEHOLDER: Replace this URL once you get it from Render.com
+        const productionHost = 'trading-backend-suresh.onrender.com'; // Change this after Step 1
+
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = isLocal ? 'localhost:8888' : productionHost;
+
+        const socket = new WebSocket(`${wsProtocol}//${wsHost}/ws/trading`);
 
         socket.onopen = () => {
             console.log("RAPID Terminal Connected");
@@ -112,8 +122,8 @@ const App = () => {
 
                         {/* 1. UPPER RESISTANCE / SHORT ZONE (Always visible) */}
                         <div className={`p-4 rounded-2xl border transition-all duration-300 flex justify-between items-center relative overflow-hidden ${data.ai_prediction?.signal?.includes('SELL')
-                                ? 'bg-rose-500/20 border-rose-500 text-rose-100 shadow-[0_0_20px_rgba(244,63,94,0.2)]'
-                                : 'bg-white/5 border-white/5 text-[#848E9C] opacity-60'
+                            ? 'bg-rose-500/20 border-rose-500 text-rose-100 shadow-[0_0_20px_rgba(244,63,94,0.2)]'
+                            : 'bg-white/5 border-white/5 text-[#848E9C] opacity-60'
                             }`}>
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
@@ -135,10 +145,10 @@ const App = () => {
                         <div className="py-4 flex items-center justify-center relative">
                             <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
                             <div className={`px-8 py-2 rounded-full border-2 font-black uppercase tracking-[0.2em] text-xs z-10 transition-all ${data.ai_prediction?.signal === 'STRONG BUY' ? 'bg-emerald-500 text-black border-emerald-400' :
-                                    data.ai_prediction?.signal === 'BUY' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500' :
-                                        data.ai_prediction?.signal === 'STRONG SELL' ? 'bg-rose-500 text-white border-rose-400' :
-                                            data.ai_prediction?.signal === 'SELL' ? 'bg-rose-500/20 text-rose-400 border-rose-500' :
-                                                'bg-[#FCD535]/20 text-[#FCD535] border-[#FCD535]'
+                                data.ai_prediction?.signal === 'BUY' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500' :
+                                    data.ai_prediction?.signal === 'STRONG SELL' ? 'bg-rose-500 text-white border-rose-400' :
+                                        data.ai_prediction?.signal === 'SELL' ? 'bg-rose-500/20 text-rose-400 border-rose-500' :
+                                            'bg-[#FCD535]/20 text-[#FCD535] border-[#FCD535]'
                                 }`}>
                                 {data.ai_prediction?.signal || "ANALYZING..."}
                             </div>
@@ -146,8 +156,8 @@ const App = () => {
 
                         {/* 3. LOWER SUPPORT / LONG ZONE (Always visible) */}
                         <div className={`p-4 rounded-2xl border transition-all duration-300 flex justify-between items-center relative overflow-hidden ${data.ai_prediction?.signal?.includes('BUY')
-                                ? 'bg-emerald-600/20 border-emerald-500 text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
-                                : 'bg-white/5 border-white/5 text-[#848E9C] opacity-60'
+                            ? 'bg-emerald-600/20 border-emerald-500 text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
+                            : 'bg-white/5 border-white/5 text-[#848E9C] opacity-60'
                             }`}>
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
