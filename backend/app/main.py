@@ -111,10 +111,10 @@ async def trading_socket(websocket: WebSocket):
             
             if symbol not in signal_lock or now > signal_lock[symbol].get('expiry', 0):
                 ai_pred = strategy_eng.get_ai_prediction(df)
-                # Lock signal for 20 seconds to prevent "flickering"
+                # Lock signal for 5 seconds to provide stability without heavy lag
                 signal_lock[symbol] = {
                     "data": ai_pred,
-                    "expiry": now + 20.0 
+                    "expiry": now + 5.0 
                 }
             
             stable_ai_pred = signal_lock[symbol]["data"]
